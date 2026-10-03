@@ -1,1 +1,9 @@
 # dbms_hosp_management_system
+CareHub — Hospital Management System
+CareHub is a full-stack, role-based Hospital Management System designed to digitize and streamline hospital operations across clinical, administrative, inpatient, and financial workflows.
+The system uses React 18, Vite, Tailwind CSS, and React Router for the frontend, Node.js and Express.js for the backend REST API, and MySQL 8 for relational data management. Authentication is implemented using JWT, with bcryptjs for secure password hashing and middleware-based role-based access control.
+The platform provides dedicated portals for Admin, Receptionist, Doctor, and Patient roles. Administrators can manage hospital departments, doctors, patients, users, appointments, admissions, and billing. Receptionists handle patient registration, appointment scheduling, admissions, and billing. Doctors can manage consultations, view patient medical histories, issue e-prescriptions, and order diagnostic tests. Patients can book appointments, view prescriptions and test results, access medical records, and review billing information.
+The MySQL database follows a structured relational design with primary and foreign keys, constraints, indexes, and referential integrity to maintain consistent healthcare data. The backend follows a modular architecture with separate controllers, routes, middleware, and database configuration.
+Key features: Role-based authentication, patient management, doctor management, appointment scheduling, inpatient admissions, EHR/medical history, e-prescriptions, diagnostic tests, billing and payments, dashboards and analytics, and secure REST APIs.
+Tech Stack:
+React.js • Vite • Tailwind CSS • Node.js • Express.js • MySQL • JWT • bcryptjs • Axios • Recharts
