@@ -19,6 +19,39 @@ CareHub is built using a modern full-stack architecture with **React.js, Node.js
 
 ---
 
+## 🔑 Demo Login Credentials
+
+All demonstration accounts use the default password: **`Hospital@123`**
+
+| Role | Email | Password | Default Portal |
+|---|---|---|---|
+| **Admin** | `admin@hospital.com` | `Hospital@123` | `/admin/dashboard` |
+| **Doctor** | `doctor@hospital.com` | `Hospital@123` | `/doctor/dashboard` |
+| **Receptionist** | `reception@hospital.com` | `Hospital@123` | `/receptionist/dashboard` |
+| **Patient** | `patient@hospital.com` | `Hospital@123` | `/patient/dashboard` |
+
+<details>
+<summary><b>View Additional Seeded Accounts</b></summary>
+
+- **Other Doctors:**
+  - `priya.nair@hospital.com` (Neurology)
+  - `rohan.sharma@hospital.com` (Orthopedics)
+  - `ananya.iyer@hospital.com` (Internal Medicine)
+  - `vikram.reddy@hospital.com` (Pediatrics)
+- **Other Receptionists:**
+  - `reception2@hospital.com`
+- **Other Patients:**
+  - `sanjay.patel@hospital.com`
+  - `neha.gupta@hospital.com`
+  - `amit.kulkarni@hospital.com`
+  - `pooja.singh@hospital.com`
+
+</details>
+
+> 💡 **Tip:** New patients can also self-register via the `/register` page.
+
+---
+
 ## 🎯 Objectives
 
 The main objectives of CareHub are to:
