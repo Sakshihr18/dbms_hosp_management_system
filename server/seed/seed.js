@@ -10,13 +10,19 @@ async function run() {
     throw new Error('DB_PASSWORD is missing. Copy server/.env.example to server/.env and set your MySQL root password.');
   }
 
-  const connection = await mysql.createConnection({
+  const connectionConfig = {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || 'root',
     password,
     multipleStatements: true,
-  });
+  };
+
+  if (process.env.DB_SSL === 'true') {
+    connectionConfig.ssl = { rejectUnauthorized: false };
+  }
+
+  const connection = await mysql.createConnection(connectionConfig);
 
   const schema = fs.readFileSync(path.join(__dirname, '../../database/schema.sql'), 'utf8');
   await connection.query(schema);

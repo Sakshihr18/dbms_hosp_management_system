@@ -6,7 +6,22 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
+const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const allowedOrigins = clientOrigin.split(',').map((o) => o.trim().replace(/\/$/, ''));
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const normalized = origin.replace(/\/$/, '');
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(normalized)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS origin not allowed: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
