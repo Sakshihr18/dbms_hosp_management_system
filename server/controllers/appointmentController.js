@@ -9,11 +9,16 @@ const TIME_SLOTS = [
 
 const appointmentSelect = `
   SELECT a.*, p.name AS patient_name, p.phone AS patient_phone,
-         d.name AS doctor_name, dep.department_name, dep.department_id
+         d.name AS doctor_name, d.specialization AS doctor_specialization, d.consultation_fee,
+         dep.department_name, dep.department_id,
+         b.bill_id, b.amount AS bill_amount, b.status AS bill_status,
+         pay.payment_id, pay.payment_status, pay.transaction_ref
   FROM appointment a
   JOIN patient p ON p.patient_id = a.patient_id
   JOIN doctor d ON d.doctor_id = a.doctor_id
   JOIN department dep ON dep.department_id = d.department_id
+  LEFT JOIN bill b ON b.appointment_id = a.appointment_id
+  LEFT JOIN payment pay ON pay.bill_id = b.bill_id
 `;
 
 async function slotTaken(doctorId, date, time, ignoreId) {
@@ -93,21 +98,75 @@ exports.create = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Please select a valid appointment time.' });
   }
 
-  if (await slotTaken(doctor_id, appointment_date, normalizedTime)) {
-    return res.status(409).json({ message: 'Appointment slot is already booked.' });
+  const [doctorRows] = await pool.query(
+    'SELECT doctor_id, name, specialization, consultation_fee FROM doctor WHERE doctor_id = ?',
+    [doctor_id]
+  );
+  if (!doctorRows.length) {
+    return res.status(404).json({ message: 'Selected doctor was not found.' });
   }
+  const doctor = doctorRows[0];
+  const fee = Number(doctor.consultation_fee) > 0 ? Number(doctor.consultation_fee) : 500.00;
 
+  const conn = await pool.getConnection();
   try {
-    const [result] = await pool.query(
+    await conn.beginTransaction();
+
+    // Check slot within transaction
+    const [booked] = await conn.query(
+      `SELECT appointment_id FROM appointment
+       WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ?
+       AND status = 'Scheduled' FOR UPDATE`,
+      [doctor_id, appointment_date, normalizedTime]
+    );
+
+    if (booked.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ message: 'Appointment slot is already booked.' });
+    }
+
+    const [appResult] = await conn.query(
       `INSERT INTO appointment (patient_id, doctor_id, appointment_date, appointment_time, reason, status)
        VALUES (?, ?, ?, ?, ?, 'Scheduled')`,
       [patient_id, doctor_id, appointment_date, normalizedTime, reason]
     );
-    const [rows] = await pool.query(appointmentSelect + ' WHERE a.appointment_id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    const newAppointmentId = appResult.insertId;
+
+    // Create corresponding bill with authoritative server-calculated doctor fee
+    const billDesc = `Consultation fee - ${doctor.name} (${doctor.specialization || 'General'})`;
+    const [billResult] = await conn.query(
+      `INSERT INTO bill (patient_id, appointment_id, admission_id, amount, bill_date, description, status)
+       VALUES (?, ?, NULL, ?, CURDATE(), ?, 'Pending')`,
+      [patient_id, newAppointmentId, fee, billDesc]
+    );
+    const newBillId = billResult.insertId;
+
+    // Create payment entry awaiting UPI QR payment
+    const [payResult] = await conn.query(
+      `INSERT INTO payment (bill_id, appointment_id, patient_id, payment_method, amount, payment_status)
+       VALUES (?, ?, ?, 'UPI_QR', ?, 'Awaiting Payment')`,
+      [newBillId, newAppointmentId, patient_id, fee]
+    );
+    const newPaymentId = payResult.insertId;
+
+    await conn.commit();
+
+    const [rows] = await pool.query(appointmentSelect + ' WHERE a.appointment_id = ?', [newAppointmentId]);
+    const responsePayload = {
+      ...(rows[0] || {}),
+      bill_id: newBillId,
+      bill_amount: fee,
+      bill_status: 'Pending',
+      payment_id: newPaymentId,
+      payment_status: 'Awaiting Payment',
+    };
+    res.status(201).json(responsePayload);
   } catch (err) {
+    await conn.rollback();
     err.message = err.message || 'Unable to create appointment.';
     throw err;
+  } finally {
+    conn.release();
   }
 });
 

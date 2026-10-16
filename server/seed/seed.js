@@ -64,12 +64,12 @@ async function run() {
   `);
 
   await connection.query(`
-    INSERT INTO doctor (user_id, department_id, name, specialization, phone, email, experience) VALUES
-    (4, 1, 'Dr. Arjun Mehta', 'Interventional Cardiology', '9876500001', 'doctor@hospital.com', 12),
-    (5, 2, 'Dr. Priya Nair', 'Neurology', '9876500002', 'priya.nair@hospital.com', 9),
-    (6, 3, 'Dr. Rohan Sharma', 'Orthopedic Surgery', '9876500003', 'rohan.sharma@hospital.com', 11),
-    (7, 4, 'Dr. Ananya Iyer', 'Internal Medicine', '9876500004', 'ananya.iyer@hospital.com', 8),
-    (8, 5, 'Dr. Vikram Reddy', 'Pediatrics', '9876500005', 'vikram.reddy@hospital.com', 10)
+    INSERT INTO doctor (user_id, department_id, name, specialization, phone, email, experience, consultation_fee) VALUES
+    (4, 1, 'Dr. Arjun Mehta', 'Interventional Cardiology', '9876500001', 'doctor@hospital.com', 12, 800.00),
+    (5, 2, 'Dr. Priya Nair', 'Neurology', '9876500002', 'priya.nair@hospital.com', 9, 750.00),
+    (6, 3, 'Dr. Rohan Sharma', 'Orthopedic Surgery', '9876500003', 'rohan.sharma@hospital.com', 11, 700.00),
+    (7, 4, 'Dr. Ananya Iyer', 'Internal Medicine', '9876500004', 'ananya.iyer@hospital.com', 8, 500.00),
+    (8, 5, 'Dr. Vikram Reddy', 'Pediatrics', '9876500005', 'vikram.reddy@hospital.com', 10, 600.00)
   `);
 
   await connection.query(`
@@ -134,6 +134,22 @@ async function run() {
     (4, 5, NULL, 1800.00, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'Orthopedic consultation', 'Paid'),
     (8, NULL, 3, 15000.00, CURDATE(), 'Cardiac monitoring admission', 'Pending'),
     (10, 11, NULL, 900.00, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'General medicine consultation', 'Pending')
+  `);
+
+  await connection.query(`
+    INSERT INTO payment (bill_id, appointment_id, patient_id, payment_method, amount, payment_status, submitted_at, verified_at, verified_by, notes)
+    SELECT 
+      b.bill_id,
+      b.appointment_id,
+      b.patient_id,
+      'UPI_QR',
+      b.amount,
+      CASE WHEN b.status = 'Paid' THEN 'Paid' ELSE 'Awaiting Payment' END,
+      CASE WHEN b.status = 'Paid' THEN NOW() ELSE NULL END,
+      CASE WHEN b.status = 'Paid' THEN NOW() ELSE NULL END,
+      CASE WHEN b.status = 'Paid' THEN 1 ELSE NULL END,
+      'Initial seed record'
+    FROM bill b
   `);
 
   await connection.end();

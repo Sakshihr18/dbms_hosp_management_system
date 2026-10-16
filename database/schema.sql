@@ -8,6 +8,7 @@ CREATE DATABASE IF NOT EXISTS hospital_management
 USE hospital_management;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS payment;
 DROP TABLE IF EXISTS bill;
 DROP TABLE IF EXISTS medical_test;
 DROP TABLE IF EXISTS prescription;
@@ -64,6 +65,7 @@ CREATE TABLE doctor (
   phone VARCHAR(20) NOT NULL,
   email VARCHAR(100) NOT NULL,
   experience INT NOT NULL,
+  consultation_fee DECIMAL(10, 2) NOT NULL DEFAULT 500.00,
   CONSTRAINT fk_doctor_user
     FOREIGN KEY (user_id) REFERENCES users(user_id)
     ON UPDATE CASCADE
@@ -72,7 +74,8 @@ CREATE TABLE doctor (
     FOREIGN KEY (department_id) REFERENCES department(department_id)
     ON UPDATE CASCADE
     ON DELETE RESTRICT,
-  CONSTRAINT chk_doctor_experience CHECK (experience >= 0)
+  CONSTRAINT chk_doctor_experience CHECK (experience >= 0),
+  CONSTRAINT chk_doctor_fee CHECK (consultation_fee >= 0)
 );
 
 CREATE TABLE appointment (
@@ -195,3 +198,46 @@ CREATE INDEX idx_admission_status ON admission (status);
 CREATE INDEX idx_bill_status ON bill (status);
 CREATE INDEX idx_patient_phone ON patient (phone);
 CREATE INDEX idx_doctor_department ON doctor (department_id);
+
+CREATE TABLE payment (
+  payment_id INT PRIMARY KEY AUTO_INCREMENT,
+  bill_id INT NOT NULL,
+  appointment_id INT NULL,
+  patient_id INT NOT NULL,
+  payment_method VARCHAR(50) NOT NULL DEFAULT 'UPI_QR',
+  transaction_ref VARCHAR(100) NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+  payment_status ENUM('Awaiting Payment', 'Pending Verification', 'Paid', 'Rejected', 'Cancelled') NOT NULL DEFAULT 'Awaiting Payment',
+  submitted_at DATETIME NULL,
+  verified_at DATETIME NULL,
+  verified_by INT NULL,
+  rejection_reason VARCHAR(255) NULL,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_payment_bill
+    FOREIGN KEY (bill_id) REFERENCES bill(bill_id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
+  CONSTRAINT fk_payment_appointment
+    FOREIGN KEY (appointment_id) REFERENCES appointment(appointment_id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
+  CONSTRAINT fk_payment_patient
+    FOREIGN KEY (patient_id) REFERENCES patient(patient_id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
+  CONSTRAINT fk_payment_verifier
+    FOREIGN KEY (verified_by) REFERENCES users(user_id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
+  CONSTRAINT chk_payment_amount CHECK (amount > 0)
+);
+
+CREATE INDEX idx_payment_status ON payment (payment_status);
+CREATE INDEX idx_payment_patient ON payment (patient_id);
+CREATE INDEX idx_payment_bill ON payment (bill_id);
+CREATE INDEX idx_payment_appointment ON payment (appointment_id);
+CREATE INDEX idx_payment_trans_ref ON payment (transaction_ref);
+

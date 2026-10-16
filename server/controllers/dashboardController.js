@@ -18,6 +18,9 @@ exports.admin = asyncHandler(async (req, res) => {
   const [[pendingBills]] = await pool.query(
     "SELECT COUNT(*) AS total FROM bill WHERE status = 'Pending'"
   );
+  const [[pendingVerifications]] = await pool.query(
+    "SELECT COUNT(*) AS total FROM payment WHERE payment_status = 'Pending Verification'"
+  );
   const [chart] = await pool.query(
     `SELECT appointment_date AS date, COUNT(*) AS total
      FROM appointment
@@ -32,6 +35,7 @@ exports.admin = asyncHandler(async (req, res) => {
     todayAppointments: today.total,
     currentAdmissions: admissions.total,
     pendingBills: pendingBills.total,
+    pendingVerifications: pendingVerifications.total,
     appointmentsLast7Days: chart,
   });
 });
@@ -46,11 +50,15 @@ exports.receptionist = asyncHandler(async (req, res) => {
   const [[pendingBills]] = await pool.query(
     "SELECT COUNT(*) AS total FROM bill WHERE status = 'Pending'"
   );
+  const [[pendingVerifications]] = await pool.query(
+    "SELECT COUNT(*) AS total FROM payment WHERE payment_status = 'Pending Verification'"
+  );
   const [[patients]] = await pool.query('SELECT COUNT(*) AS total FROM patient');
   res.json({
     todayAppointments: today.total,
     currentAdmissions: admissions.total,
     pendingBills: pendingBills.total,
+    pendingVerifications: pendingVerifications.total,
     totalPatients: patients.total,
   });
 });
@@ -106,6 +114,25 @@ exports.patient = asyncHandler(async (req, res) => {
     "SELECT COUNT(*) AS total FROM bill WHERE patient_id = ? AND status = 'Pending'",
     [patient.patient_id]
   );
+  const [[pendingVerifications]] = await pool.query(
+    "SELECT COUNT(*) AS total FROM payment WHERE patient_id = ? AND payment_status = 'Pending Verification'",
+    [patient.patient_id]
+  );
+  const [[awaitingPayments]] = await pool.query(
+    "SELECT COUNT(*) AS total FROM payment WHERE patient_id = ? AND payment_status = 'Awaiting Payment'",
+    [patient.patient_id]
+  );
+  const [recentPayments] = await pool.query(
+    `SELECT pay.*, b.description AS bill_description, d.name AS doctor_name
+     FROM payment pay
+     JOIN bill b ON b.bill_id = pay.bill_id
+     LEFT JOIN appointment a ON a.appointment_id = pay.appointment_id
+     LEFT JOIN doctor d ON d.doctor_id = a.doctor_id
+     WHERE pay.patient_id = ?
+     ORDER BY pay.updated_at DESC
+     LIMIT 5`,
+    [patient.patient_id]
+  );
   const [prescriptions] = await pool.query(
     `SELECT pr.*, d.name AS doctor_name
      FROM prescription pr
@@ -117,9 +144,21 @@ exports.patient = asyncHandler(async (req, res) => {
   );
 
   res.json({
+    patient: {
+      patient_id: patient.patient_id,
+      name: patient.name,
+      dob: patient.dob,
+      gender: patient.gender,
+      blood_group: patient.blood_group,
+      phone: patient.phone,
+      email: patient.email,
+    },
     upcomingAppointment: upcoming[0] || null,
     lastVisit: lastVisit[0] || null,
     pendingBills: pendingBills.total,
+    pendingVerifications: pendingVerifications.total,
+    awaitingPayments: awaitingPayments.total,
+    recentPayments,
     recentPrescriptions: prescriptions,
   });
 });

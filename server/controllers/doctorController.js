@@ -4,7 +4,7 @@ const asyncHandler = require('../middleware/asyncHandler');
 
 const doctorSelect = `
   SELECT d.doctor_id, d.user_id, d.department_id, d.name, d.specialization,
-         d.phone, d.email, d.experience, dep.department_name, u.is_active
+         d.phone, d.email, d.experience, d.consultation_fee, dep.department_name, u.is_active
   FROM doctor d
   JOIN department dep ON dep.department_id = d.department_id
   JOIN users u ON u.user_id = d.user_id
@@ -33,7 +33,7 @@ exports.getOne = asyncHandler(async (req, res) => {
 });
 
 exports.create = asyncHandler(async (req, res) => {
-  const { name, email, password, department_id, specialization, phone, experience } = req.body;
+  const { name, email, password, department_id, specialization, phone, experience, consultation_fee } = req.body;
   if (!name || !email || !password || !department_id || !specialization || !phone || experience === undefined) {
     return res.status(400).json({ message: 'Please fill all doctor fields.' });
   }
@@ -43,6 +43,7 @@ exports.create = asyncHandler(async (req, res) => {
     return res.status(409).json({ message: 'An account with this email already exists.' });
   }
 
+  const fee = consultation_fee !== undefined && Number(consultation_fee) >= 0 ? Number(consultation_fee) : 500.00;
   const hashed = await bcrypt.hash(password, 10);
   const conn = await pool.getConnection();
   try {
@@ -52,9 +53,9 @@ exports.create = asyncHandler(async (req, res) => {
       [name, email, hashed, 'doctor']
     );
     const [docResult] = await conn.query(
-      `INSERT INTO doctor (user_id, department_id, name, specialization, phone, email, experience)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [userResult.insertId, department_id, name, specialization, phone, email, Number(experience)]
+      `INSERT INTO doctor (user_id, department_id, name, specialization, phone, email, experience, consultation_fee)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userResult.insertId, department_id, name, specialization, phone, email, Number(experience), fee]
     );
     await conn.commit();
     const [rows] = await pool.query(doctorSelect + ' WHERE d.doctor_id = ?', [docResult.insertId]);
@@ -77,12 +78,13 @@ exports.update = asyncHandler(async (req, res) => {
   const specialization = req.body.specialization || current.specialization;
   const phone = req.body.phone || current.phone;
   const experience = req.body.experience !== undefined ? Number(req.body.experience) : current.experience;
+  const consultation_fee = req.body.consultation_fee !== undefined ? Number(req.body.consultation_fee) : current.consultation_fee;
 
   await pool.query(
     `UPDATE doctor
-     SET name = ?, department_id = ?, specialization = ?, phone = ?, experience = ?
+     SET name = ?, department_id = ?, specialization = ?, phone = ?, experience = ?, consultation_fee = ?
      WHERE doctor_id = ?`,
-    [name, department_id, specialization, phone, experience, req.params.id]
+    [name, department_id, specialization, phone, experience, consultation_fee, req.params.id]
   );
   await pool.query('UPDATE users SET name = ? WHERE user_id = ?', [name, current.user_id]);
 

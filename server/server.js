@@ -14,7 +14,11 @@ app.use(
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       const normalized = origin.replace(/\/$/, '');
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(normalized)) {
+      if (
+        allowedOrigins.includes('*') ||
+        allowedOrigins.includes(normalized) ||
+        /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(normalized)
+      ) {
         return callback(null, true);
       }
       return callback(new Error(`CORS origin not allowed: ${origin}`));
@@ -37,6 +41,7 @@ app.use('/api/admissions', require('./routes/admissionRoutes'));
 app.use('/api/prescriptions', require('./routes/prescriptionRoutes'));
 app.use('/api/tests', require('./routes/testRoutes'));
 app.use('/api/bills', require('./routes/billRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 

@@ -3,9 +3,11 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { getPatientByUserId } = require('../utils/profile');
 
 const billSelect = `
-  SELECT b.*, p.name AS patient_name
+  SELECT b.*, p.name AS patient_name,
+         pay.payment_id, pay.payment_status, pay.transaction_ref, pay.rejection_reason, pay.submitted_at, pay.verified_at
   FROM bill b
   JOIN patient p ON p.patient_id = b.patient_id
+  LEFT JOIN payment pay ON pay.bill_id = b.bill_id
 `;
 
 exports.list = asyncHandler(async (req, res) => {

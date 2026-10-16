@@ -7,6 +7,9 @@ const styles = {
   Admitted: 'bg-teal-50 text-teal-700',
   Discharged: 'bg-slate-100 text-slate-600',
   Ordered: 'bg-amber-50 text-amber-700',
+  'Awaiting Payment': 'bg-amber-50 text-amber-700',
+  'Pending Verification': 'bg-purple-100 text-purple-800 font-semibold',
+  Rejected: 'bg-rose-50 text-rose-700',
 };
 
 export default function Badge({ value }) {

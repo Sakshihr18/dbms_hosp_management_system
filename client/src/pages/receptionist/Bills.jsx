@@ -7,10 +7,12 @@ import Input from '../../components/Input';
 import Modal from '../../components/Modal';
 import Select from '../../components/Select';
 import Table from '../../components/Table';
+import PaymentVerificationView from '../../components/PaymentVerificationView';
 
 const empty = { patient_id: '', appointment_id: '', admission_id: '', amount: '', description: '' };
 
 export default function ReceptionistBills() {
+  const [activeTab, setActiveTab] = useState('verification');
   const [rows, setRows] = useState([]);
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -20,14 +22,30 @@ export default function ReceptionistBills() {
   const [form, setForm] = useState(empty);
   const [error, setError] = useState('');
 
-  const load = () => api.get('/bills', { params: status ? { status } : {} }).then((res) => setRows(res.data)).catch((err) => setError(err.message));
-  useEffect(() => { api.get('/patients').then((res) => setPatients(res.data)); }, []);
-  useEffect(() => { load(); }, [status]);
+  const load = () =>
+    api
+      .get('/bills', { params: status ? { status } : {} })
+      .then((res) => setRows(res.data))
+      .catch((err) => setError(err.message));
+
+  useEffect(() => {
+    api.get('/patients').then((res) => setPatients(res.data));
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'all') {
+      load();
+    }
+  }, [status, activeTab]);
 
   useEffect(() => {
     if (!form.patient_id) return;
-    api.get('/appointments').then((res) => setAppointments(res.data.filter((a) => String(a.patient_id) === String(form.patient_id))));
-    api.get('/admissions').then((res) => setAdmissions(res.data.filter((a) => String(a.patient_id) === String(form.patient_id))));
+    api
+      .get('/appointments')
+      .then((res) => setAppointments(res.data.filter((a) => String(a.patient_id) === String(form.patient_id))));
+    api
+      .get('/admissions')
+      .then((res) => setAdmissions(res.data.filter((a) => String(a.patient_id) === String(form.patient_id))));
   }, [form.patient_id]);
 
   const save = async (e) => {
@@ -47,36 +65,136 @@ export default function ReceptionistBills() {
   };
 
   return (
-    <Card
-      title="Bills"
-      action={
-        <div className="flex gap-2">
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, { value: 'Pending', label: 'Pending' }, { value: 'Paid', label: 'Paid' }]} />
-          <Button onClick={() => setOpen(true)}>Create Bill</Button>
-        </div>
-      }
-    >
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-      <Table rows={rows} columns={[
-        { key: 'patient_name', label: 'Patient' },
-        { key: 'amount', label: 'Amount' },
-        { key: 'description', label: 'Description' },
-        { key: 'bill_date', label: 'Date' },
-        { key: 'status', label: 'Status', render: (r) => <Badge value={r.status} /> },
-        { key: 'actions', label: '', render: (r) => r.status === 'Pending' ? (
-          <Button onClick={async () => { await api.put(`/bills/${r.bill_id}`, { status: 'Paid' }); load(); }}>Mark Paid</Button>
-        ) : null },
-      ]} />
-      <Modal open={open} title="Create Bill" onClose={() => setOpen(false)}>
-        <form onSubmit={save} className="grid gap-3">
-          <Select label="Patient" value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value, appointment_id: '', admission_id: '' })} options={[{ value: '', label: 'Select patient' }, ...patients.map((p) => ({ value: p.patient_id, label: p.name }))]} />
-          <Select label="Appointment (optional)" value={form.appointment_id} onChange={(e) => setForm({ ...form, appointment_id: e.target.value, admission_id: '' })} options={[{ value: '', label: 'None' }, ...appointments.map((a) => ({ value: a.appointment_id, label: `#${a.appointment_id} ${a.appointment_date}` }))]} />
-          <Select label="Admission (optional)" value={form.admission_id} onChange={(e) => setForm({ ...form, admission_id: e.target.value, appointment_id: '' })} options={[{ value: '', label: 'None' }, ...admissions.map((a) => ({ value: a.admission_id, label: `#${a.admission_id} Room ${a.room_number}` }))]} />
-          <Input label="Amount" type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
-          <Input label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
-          <Button type="submit">Save Bill</Button>
-        </form>
-      </Modal>
-    </Card>
+    <div className="space-y-4">
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('verification')}
+          className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
+            activeTab === 'verification'
+              ? 'border-brand-600 text-brand-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <span>UPI Payment Verification</span>
+          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-700">
+            Queue
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`border-b-2 px-5 py-3 text-sm font-semibold transition-colors ${
+            activeTab === 'all'
+              ? 'border-brand-600 text-brand-700'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          All Hospital Invoices
+        </button>
+      </div>
+
+      {activeTab === 'verification' ? (
+        <PaymentVerificationView />
+      ) : (
+        <Card
+          title="Hospital Invoices & Billing"
+          action={
+            <div className="flex gap-2">
+              <Select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={[
+                  { value: '', label: 'All' },
+                  { value: 'Pending', label: 'Pending' },
+                  { value: 'Paid', label: 'Paid' },
+                ]}
+              />
+              <Button onClick={() => setOpen(true)}>Create Bill</Button>
+            </div>
+          }
+        >
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          <Table
+            rows={rows}
+            columns={[
+              { key: 'patient_name', label: 'Patient' },
+              { key: 'amount', label: 'Amount', render: (r) => `₹${Number(r.amount).toFixed(2)}` },
+              { key: 'description', label: 'Description' },
+              { key: 'bill_date', label: 'Date' },
+              { key: 'status', label: 'Status', render: (r) => <Badge value={r.status} /> },
+              {
+                key: 'actions',
+                label: 'Action',
+                render: (r) =>
+                  r.status === 'Pending' ? (
+                    <Button
+                      onClick={async () => {
+                        await api.put(`/bills/${r.bill_id}`, { status: 'Paid' });
+                        load();
+                      }}
+                    >
+                      Mark Paid
+                    </Button>
+                  ) : null,
+              },
+            ]}
+          />
+          <Modal open={open} title="Create Bill" onClose={() => setOpen(false)}>
+            <form onSubmit={save} className="grid gap-3">
+              <Select
+                label="Patient"
+                value={form.patient_id}
+                onChange={(e) =>
+                  setForm({ ...form, patient_id: e.target.value, appointment_id: '', admission_id: '' })
+                }
+                options={[
+                  { value: '', label: 'Select patient' },
+                  ...patients.map((p) => ({ value: p.patient_id, label: p.name })),
+                ]}
+              />
+              <Select
+                label="Appointment (optional)"
+                value={form.appointment_id}
+                onChange={(e) => setForm({ ...form, appointment_id: e.target.value, admission_id: '' })}
+                options={[
+                  { value: '', label: 'None' },
+                  ...appointments.map((a) => ({
+                    value: a.appointment_id,
+                    label: `#${a.appointment_id} ${a.appointment_date}`,
+                  })),
+                ]}
+              />
+              <Select
+                label="Admission (optional)"
+                value={form.admission_id}
+                onChange={(e) => setForm({ ...form, admission_id: e.target.value, appointment_id: '' })}
+                options={[
+                  { value: '', label: 'None' },
+                  ...admissions.map((a) => ({
+                    value: a.admission_id,
+                    label: `#${a.admission_id} Room ${a.room_number}`,
+                  })),
+                ]}
+              />
+              <Input
+                label="Amount (₹)"
+                type="number"
+                step="0.01"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                required
+              />
+              <Input
+                label="Description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                required
+              />
+              <Button type="submit">Save Bill</Button>
+            </form>
+          </Modal>
+        </Card>
+      )}
+    </div>
   );
 }
